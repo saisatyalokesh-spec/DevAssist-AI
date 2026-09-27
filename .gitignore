@@ -1,0 +1,26 @@
+# --- Python / backend ---
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+devassist.db
+*.db
+.env
+
+# --- Node / frontend ---
+app/frontend/node_modules/
+app/frontend/.next/
+app/frontend/out/
+app/frontend/.env.local
+npm-debug.log*
+
+# --- OS / editor ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Data cache (regenerate with `python -m app.rag.build_cache`) ---
+# Keep this tracked if you want the cache committed; uncomment to ignore instead:
+# app/backend/data/processed/guides.json

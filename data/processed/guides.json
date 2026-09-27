@@ -1,0 +1,2002 @@
+[
+  {
+    "guide_id": "API-001",
+    "title": "API 401 Unauthorized",
+    "collection": "common",
+    "category": "API & Integration",
+    "identifier": "HTTP 401 Unauthorized returned on API request",
+    "problem": "A customer's API request is rejected with an HTTP 401 Unauthorized response, blocking their integration from authenticating.",
+    "visual": [
+      "HTTP 401 Unauthorized returned on API request",
+      "Browser dev tools / Postman console showing status code 401",
+      "Response body containing \"Unauthorized\" or \"invalid_token\"",
+      "Customer's integration logs showing repeated failed auth attempts"
+    ],
+    "symptoms": [
+      "Every API call from the customer's integration fails with 401.",
+      "The error appears regardless of which endpoint is called.",
+      "Issue may have started suddenly after working previously."
+    ],
+    "causes": [
+      "API token has expired.",
+      "API token or key was typed/copied incorrectly.",
+      "Token was revoked or regenerated on another system.",
+      "Authorization header is missing or malformed in the request."
+    ],
+    "steps": [
+      "Ask the customer to share the exact request headers (redacting the secret portion).",
+      "Confirm the Authorization header is present and correctly formatted (e.g. \"Bearer <token>\").",
+      "Check the token's expiry date in the account's API settings.",
+      "Regenerate a new token if expired or revoked.",
+      "Ask the customer to update their integration with the new token and retry."
+    ],
+    "decision": "If a freshly generated, correctly formatted token still returns 401, this is not a customer-side credential issue — escalate.",
+    "solution": "Issue a new valid API token, confirm the customer updates their integration configuration, and confirm a test request succeeds with a 200 response.",
+    "escalation": "Escalate if a valid, correctly formatted, non-expired token still returns 401 after regeneration.",
+    "team": "API & Integration Team",
+    "related": [
+      "API-002 (403 Forbidden)",
+      "API-004 (API Timeout)"
+    ]
+  },
+  {
+    "guide_id": "API-002",
+    "title": "API 403 Forbidden",
+    "collection": "common",
+    "category": "API & Integration",
+    "identifier": "HTTP 403 Forbidden returned on API request",
+    "problem": "A customer's API request authenticates successfully but is rejected with HTTP 403 Forbidden when accessing a specific resource or endpoint.",
+    "visual": [
+      "HTTP 403 Forbidden returned on API request",
+      "Status code 403 in the response",
+      "Response body mentioning \"insufficient_scope\", \"forbidden\", or \"access_denied\"",
+      "Customer screenshot showing the request succeeds for one endpoint but fails for another"
+    ],
+    "symptoms": [
+      "Authentication succeeds (not a 401), but the specific action is denied.",
+      "Other endpoints using the same token work correctly.",
+      "Error may be limited to one resource type or one account feature."
+    ],
+    "causes": [
+      "The API token's scope does not include the requested permission.",
+      "The account's subscription plan does not include that API feature.",
+      "IP-based allowlisting is blocking the request's origin.",
+      "The requested resource belongs to a different account or workspace."
+    ],
+    "steps": [
+      "Identify exactly which endpoint/resource is returning 403.",
+      "Check the token's assigned scopes against what the endpoint requires.",
+      "Confirm the account's plan includes this API feature.",
+      "Check whether IP allowlisting is enabled and whether the request origin is included.",
+      "Confirm the resource ID belongs to the correct account."
+    ],
+    "decision": "If scope, plan, and allowlist are all confirmed correct but 403 persists, escalate for a permissions-engine level investigation.",
+    "solution": "Reissue a token with the correct scope, add the missing IP to the allowlist, or clarify the plan limitation to the customer, then confirm the request succeeds.",
+    "escalation": "Escalate if all visible permission settings are correct and the endpoint still returns 403.",
+    "team": "API & Integration Team",
+    "related": [
+      "API-001 (401 Unauthorized)",
+      "CONFIG-003 (User Permission Configuration)"
+    ]
+  },
+  {
+    "guide_id": "API-003",
+    "title": "API 500 Internal Server Error",
+    "collection": "common",
+    "category": "API & Integration",
+    "identifier": "HTTP 500 Internal Server Error returned on API request",
+    "problem": "A customer's well-formed, authenticated API request fails with an HTTP 500 Internal Server Error on the server side.",
+    "visual": [
+      "HTTP 500 Internal Server Error returned on API request",
+      "Status code 500 with a generic error body (\"Internal Server Error\")",
+      "Server-side log/stack trace screenshot shared by the customer's developer",
+      "No specific field-level error message shown to the customer"
+    ],
+    "symptoms": [
+      "The request is valid and authenticated but still fails.",
+      "Error may be consistent for a specific payload or intermittent under load.",
+      "No actionable error detail is returned to the client."
+    ],
+    "causes": [
+      "An unhandled exception occurred while processing the request.",
+      "A downstream dependency (database, queue, third-party service) is unavailable.",
+      "The specific payload triggers an edge case not handled by the API.",
+      "A recent deployment introduced a regression."
+    ],
+    "steps": [
+      "Capture the exact request payload, endpoint, and timestamp of the failure.",
+      "Check backend error logs for the matching stack trace at that timestamp.",
+      "Check whether a deployment occurred shortly before the errors began.",
+      "Test the same request with a minimal/simplified payload to isolate the trigger field.",
+      "Check the health of downstream dependencies the endpoint relies on."
+    ],
+    "decision": "500 errors are server-side by definition — if the payload is valid, this cannot be resolved by the customer and must go to engineering.",
+    "solution": "If tied to a recent deployment, roll back or hotfix the regression. If caused by a downstream outage, resolve the dependency and confirm the request now succeeds.",
+    "escalation": "Always escalate unexplained 500 errors immediately — do not attempt further customer-side troubleshooting.",
+    "team": "Engineering / Backend Team",
+    "related": [
+      "API-004 (API Timeout)",
+      "API-005 (Third-Party Integration Failure)"
+    ]
+  },
+  {
+    "guide_id": "API-004",
+    "title": "API Timeout",
+    "collection": "common",
+    "category": "API & Integration",
+    "identifier": "API request times out with no response (ETIMEDOUT / 504 Gateway Timeout)",
+    "problem": "A customer's API requests take too long to respond and eventually fail with a connection or gateway timeout.",
+    "visual": [
+      "API request times out with no response (ETIMEDOUT / 504 Gateway Timeout)",
+      "Client-side timeout error (e.g. \"ETIMEDOUT\", \"Gateway Timeout 504\")",
+      "Long \"pending\" state visible in browser network tab before failure",
+      "Customer's integration logs showing elapsed time far above normal response time"
+    ],
+    "symptoms": [
+      "Requests hang for an extended period before failing.",
+      "No response body is returned, only a timeout error.",
+      "May be intermittent or consistent for a specific endpoint or payload size."
+    ],
+    "causes": [
+      "Network latency or an unstable connection on the customer's side.",
+      "The endpoint's server-side processing exceeds the client's timeout limit.",
+      "An unusually large or complex request payload is slowing processing.",
+      "A firewall or proxy on the customer's network is delaying the connection."
+    ],
+    "steps": [
+      "Confirm the customer's network connectivity is stable and consistent.",
+      "Check server-side response time metrics for the affected endpoint.",
+      "Ask whether the payload is unusually large; suggest batching into smaller requests.",
+      "Confirm no firewall/proxy on the customer's side is interfering with the connection.",
+      "Retest the same request from a different network to isolate the source."
+    ],
+    "decision": "If server response times are confirmed slow independent of the customer's network, this needs backend optimization rather than a client-side fix.",
+    "solution": "Optimize the slow endpoint or guide the customer to reduce request size/batch their calls, then confirm requests complete within the expected time.",
+    "escalation": "Escalate if backend response times are confirmed abnormally slow and require performance investigation.",
+    "team": "API & Integration Team",
+    "related": [
+      "API-003 (API 500 Internal Server Error)",
+      "COMP-006 (Application Becomes Slow for Multiple Users)"
+    ]
+  },
+  {
+    "guide_id": "API-005",
+    "title": "Third-Party Integration Failure",
+    "collection": "common",
+    "category": "API & Integration",
+    "identifier": "Third-party integration shows \"Disconnected\" or stops syncing data",
+    "problem": "A customer's connected third-party service (CRM, payment processor, messaging tool, etc.) stops exchanging data correctly with the platform.",
+    "visual": [
+      "Third-party integration shows \"Disconnected\" or stops syncing data",
+      "Integration status shown as \"Disconnected\" or \"Error\" in account settings",
+      "Third-party provider's own error/status page showing an outage",
+      "Sync log showing failed jobs with a specific error code"
+    ],
+    "symptoms": [
+      "Data stops flowing between the platform and the third-party tool.",
+      "Integration status indicator shows an error or disconnected state.",
+      "Issue may have started after either side updated their API version."
+    ],
+    "causes": [
+      "Third-party API credentials expired or were rotated.",
+      "The third-party provider changed their API version or deprecated an endpoint.",
+      "The third-party service itself is experiencing an outage.",
+      "Field mapping between the two systems no longer matches after a schema change."
+    ],
+    "steps": [
+      "Check the integration's connection status in account settings.",
+      "Confirm whether the third-party provider has a known outage (check their status page).",
+      "Verify the stored credentials/API keys for the integration are still valid.",
+      "Compare current field mappings against the third-party's latest API documentation.",
+      "Reconnect/re-authenticate the integration and run a manual test sync."
+    ],
+    "decision": "If the third-party service confirms an outage on their end, this is outside our control — communicate the outage and monitor for resolution rather than escalating internally.",
+    "solution": "Refresh expired credentials, update field mappings to match the current API version, and confirm a manual sync completes successfully.",
+    "escalation": "Escalate internally if credentials and mappings are correct and the third-party has no reported outage, indicating our integration code needs review.",
+    "team": "API & Integration Team",
+    "related": [
+      "DATA-001 (Data Synchronization Failure)",
+      "COMP-003 (Integration Stops After Credential Rotation)"
+    ]
+  },
+  {
+    "guide_id": "APP-001",
+    "title": "Dashboard Error",
+    "collection": "common",
+    "category": "Application",
+    "identifier": "Dashboard shows an error message or widgets fail to load",
+    "problem": "A customer's dashboard fails to load correctly, showing an error message or missing widgets instead of their expected data view.",
+    "visual": [
+      "Dashboard shows an error message or widgets fail to load",
+      "Error banner or toast message on the dashboard screen",
+      "One or more widgets showing a broken/error icon while others load fine",
+      "Browser console showing a failed network request (red entry) tied to a dashboard widget"
+    ],
+    "symptoms": [
+      "Dashboard shows a visible error message or partial content.",
+      "Some widgets load normally while others fail or spin indefinitely.",
+      "Issue may be isolated to one customer or affect several simultaneously."
+    ],
+    "causes": [
+      "A specific widget's backing data query is failing.",
+      "Stale cached frontend assets after a recent release.",
+      "A backend service powering dashboard data is degraded.",
+      "The customer's dataset is too large for a widget to render within its timeout."
+    ],
+    "steps": [
+      "Ask the customer to hard-refresh (clear cache) and reload the dashboard.",
+      "Identify exactly which widget(s) are failing versus loading normally.",
+      "Check the health of the backend service powering the failing widget's data.",
+      "Check browser console for a specific error tied to the failing widget.",
+      "If related to data volume, suggest narrowing the widget's date range/filter."
+    ],
+    "decision": "If only one customer is affected and a hard refresh does not fix it, investigate their specific dataset size or filter configuration before escalating.",
+    "solution": "If caused by a degraded backend service, restore the service. If caused by stale cache, the hard refresh resolves it. Confirm the dashboard now loads fully.",
+    "escalation": "Escalate if a backend data service is confirmed degraded, or if the issue affects multiple customers simultaneously.",
+    "team": "Application Support Team",
+    "related": [
+      "APP-002 (Page Not Loading)",
+      "COMP-005 (Dashboard Fails for Multiple Users)"
+    ]
+  },
+  {
+    "guide_id": "APP-002",
+    "title": "Page Not Loading",
+    "collection": "common",
+    "category": "Application",
+    "identifier": "A specific page loads blank or shows a browser-level error",
+    "problem": "A specific page within the application fails to load, showing a blank screen, a browser-level error, or an infinite loading state.",
+    "visual": [
+      "A specific page loads blank or shows a browser-level error",
+      "Blank white page with no visible content",
+      "Browser \"This site can't be reached\" or 404-style error",
+      "Loading spinner that never resolves, captured in a screen recording or screenshot"
+    ],
+    "symptoms": [
+      "The page fails to render any content.",
+      "Issue is isolated to one specific page while the rest of the app works.",
+      "Browser console may show failed asset or script load errors."
+    ],
+    "causes": [
+      "A required frontend asset (script or stylesheet) failed to load.",
+      "The page's backing API call is failing or timing out.",
+      "A routing/navigation misconfiguration specific to that page.",
+      "A browser extension or ad-blocker is blocking a required resource."
+    ],
+    "steps": [
+      "Confirm the exact URL/page that fails to load.",
+      "Check the browser console for failed asset or script errors.",
+      "Test whether the page's backing API call succeeds independently (e.g. via direct request).",
+      "Ask the customer to disable browser extensions and retry.",
+      "Try loading the page in an incognito/private window to rule out local cache issues."
+    ],
+    "decision": "If the page fails consistently across multiple browsers, devices, and a private window, the cause is server-side, not client-side.",
+    "solution": "If a required asset failed to deploy, fix the CDN/deployment issue. If caused by a browser extension, advise the customer to disable it for this site.",
+    "escalation": "Escalate if the page fails to load consistently across multiple browsers and devices after ruling out client-side causes.",
+    "team": "Application Support Team",
+    "related": [
+      "APP-001 (Dashboard Error)",
+      "APP-004 (Application Crash)"
+    ]
+  },
+  {
+    "guide_id": "APP-003",
+    "title": "Feature Not Working",
+    "collection": "common",
+    "category": "Application",
+    "identifier": "Clicking/using a feature produces no visible result",
+    "problem": "A specific feature does not perform its intended function when the customer attempts to use it, even though the rest of the application works normally.",
+    "visual": [
+      "Clicking/using a feature produces no visible result",
+      "Customer screen recording/screenshot showing a button click with no visible result",
+      "Feature area showing an empty state where output should appear",
+      "No error message shown at all, just missing expected behavior"
+    ],
+    "symptoms": [
+      "Customer clicks or triggers the feature and nothing happens.",
+      "The feature runs but produces no visible output or result.",
+      "The feature worked previously and stopped functioning recently."
+    ],
+    "causes": [
+      "A recent code change introduced a regression in that feature.",
+      "The feature depends on a backend service that is currently degraded.",
+      "The customer's account or plan does not fully support this feature.",
+      "A required precondition (e.g., missing data setup) prevents the feature from working."
+    ],
+    "steps": [
+      "Confirm exactly what the customer expects the feature to do.",
+      "Attempt to reproduce the issue using the same steps the customer describes.",
+      "Check whether the feature depends on a currently degraded backend service.",
+      "Confirm the customer's account/plan fully supports this feature.",
+      "Check for recent deployments that coincide with when the feature broke."
+    ],
+    "decision": "If reproducible and tied to a recent deployment, this is a regression requiring an engineering fix — do not attempt further workarounds.",
+    "solution": "If tied to a deployment, roll back or patch the regression. If a precondition was missing, guide the customer through correct setup, then confirm the feature works.",
+    "escalation": "Escalate if the feature is reproducibly broken and traced to a recent code change.",
+    "team": "Application Support Team",
+    "related": [
+      "APP-001 (Dashboard Error)",
+      "COMP-014 (Feature Stops Working After Product Update)"
+    ]
+  },
+  {
+    "guide_id": "APP-004",
+    "title": "Application Crash",
+    "collection": "common",
+    "category": "Application",
+    "identifier": "Application closes or reloads unexpectedly (crash)",
+    "problem": "The web or mobile application closes, reloads, or becomes unresponsive unexpectedly during normal use.",
+    "visual": [
+      "Application closes or reloads unexpectedly (crash)",
+      "Mobile OS crash dialog (\"App has stopped\")",
+      "Browser tab crash screen (\"Aw, snap!\" or similar)",
+      "Customer-shared crash log or stack trace file"
+    ],
+    "symptoms": [
+      "Application closes or reloads unexpectedly without warning.",
+      "Crash may be tied to a specific action (e.g., opening a certain screen).",
+      "Crash logs are generated on mobile devices at the time of the incident."
+    ],
+    "causes": [
+      "An unhandled exception occurred in the application code.",
+      "Insufficient device memory when processing a large dataset.",
+      "The customer is on an outdated app version with a known, already-fixed bug.",
+      "Corrupted local cache or app data on the customer's device."
+    ],
+    "steps": [
+      "Identify the exact action that triggers the crash, if reproducible.",
+      "Confirm which app version and device/OS the customer is using.",
+      "Check whether the customer is on the latest available app version.",
+      "Ask the customer to clear the app's local cache/data and retry.",
+      "Collect the crash log or stack trace if available for engineering review."
+    ],
+    "decision": "If the crash is reproducible on the latest app version and is not resolved by clearing local data, this is a code-level defect.",
+    "solution": "If outdated, guide the customer to update the app. If caused by corrupted local data, clearing the cache resolves it.",
+    "escalation": "Escalate if the crash is reproducible on the current app version and unresolved by clearing local data.",
+    "team": "Application Support Team",
+    "related": [
+      "APP-002 (Page Not Loading)",
+      "APP-003 (Feature Not Working)"
+    ]
+  },
+  {
+    "guide_id": "APP-005",
+    "title": "Data Display Error",
+    "collection": "common",
+    "category": "Application",
+    "identifier": "Displayed data on screen does not match the underlying stored data",
+    "problem": "The application shows incorrect, outdated, or garbled data on screen even though the underlying data is correct in the system.",
+    "visual": [
+      "Displayed data on screen does not match the underlying stored data",
+      "Screenshot showing obviously wrong values (e.g., negative counts, garbled characters, misaligned columns)",
+      "Side-by-side comparison of displayed value vs. the customer's own record",
+      "Console error tied to a rendering or formatting function"
+    ],
+    "symptoms": [
+      "Values on screen do not match the customer's own records.",
+      "Data appears in the wrong format (currency, date, encoding).",
+      "Issue is a display/rendering problem, not a data loss problem."
+    ],
+    "causes": [
+      "A frontend rendering or formatting bug affecting how data is displayed.",
+      "Stale cached data being shown instead of the current value.",
+      "A locale/regional formatting mismatch (date, currency, number format).",
+      "A display-layer bug introduced in a recent release."
+    ],
+    "steps": [
+      "Confirm the underlying data is correct by checking it directly in the backend/admin view.",
+      "Ask the customer to hard-refresh to rule out stale cached data.",
+      "Check the customer's locale/region settings against the expected format.",
+      "Reproduce the display issue on a test account to confirm it is not account-specific.",
+      "Check recent release notes for known display-layer changes."
+    ],
+    "decision": "If the underlying data is correct but the display remains wrong after a refresh, this is a rendering bug, not a data problem.",
+    "solution": "Fix the formatting/rendering logic or correct the locale setting, then confirm the customer sees accurate data after a refresh.",
+    "escalation": "Escalate if the underlying data is verified correct but the UI consistently displays it incorrectly.",
+    "team": "Application Support Team",
+    "related": [
+      "APP-001 (Dashboard Error)",
+      "REP-004 (Incorrect Report Data)"
+    ]
+  },
+  {
+    "guide_id": "AUTH-001",
+    "title": "Login Failure",
+    "collection": "common",
+    "category": "Authentication",
+    "identifier": "Login rejected with \"Invalid credentials\" or \"Login failed\"",
+    "problem": "A customer is unable to log in to their account despite entering what they believe are correct credentials.",
+    "visual": [
+      "Login rejected with \"Invalid credentials\" or \"Login failed\"",
+      "Login form showing \"Invalid email or password\" in red text",
+      "Repeated failed login attempts visible in the account's security log",
+      "Screenshot of a CAPTCHA or lockout notice appearing after several attempts"
+    ],
+    "symptoms": [
+      "Login page rejects the customer's email and password combination.",
+      "Error message states 'Invalid credentials' or 'Login failed'.",
+      "May affect a single user or several users on the same account."
+    ],
+    "causes": [
+      "Incorrect password entered by the user.",
+      "Account is locked after repeated failed login attempts.",
+      "The authentication service (SSO/OAuth provider) is degraded.",
+      "Account is disabled, suspended, or has an expired invitation."
+    ],
+    "steps": [
+      "Verify the account status: active, locked, or disabled.",
+      "Check the authentication service status page for ongoing incidents.",
+      "If locked, guide the customer through the self-service unlock or reset flow.",
+      "If SSO-related, confirm the identity provider (IdP) connection is active.",
+      "Confirm the customer is using the correct account/tenant if multiple exist."
+    ],
+    "decision": "If the account is active, unlocked, and SSO is healthy, but login still fails, treat this as an authentication-service issue rather than a user error.",
+    "solution": "Unlock the account and confirm login succeeds after a fresh password reset, or restore the SSO connection if that was degraded.",
+    "escalation": "Escalate if root cause cannot be isolated after all steps, or if the SSO/IdP integration itself appears broken for multiple users.",
+    "team": "Identity & Access Team",
+    "related": [
+      "AUTH-003 (Session Expiration)",
+      "AUTH-005 (SSO Authentication Failure)"
+    ]
+  },
+  {
+    "guide_id": "AUTH-002",
+    "title": "Password Reset Failure",
+    "collection": "common",
+    "category": "Authentication",
+    "identifier": "Password reset link is invalid/expired, or reset email never arrives",
+    "problem": "A customer attempts to reset their password but the process fails, or the reset email never arrives.",
+    "visual": [
+      "Password reset link is invalid/expired, or reset email never arrives",
+      "Empty inbox/spam folder screenshot from the customer",
+      "\"This link has expired or already been used\" error page",
+      "Password field showing a rejected/complexity error after entering a new password"
+    ],
+    "symptoms": [
+      "Customer requests a password reset but receives no email.",
+      "Reset link returns an 'invalid or expired link' error.",
+      "New password is rejected as invalid immediately after reset."
+    ],
+    "causes": [
+      "Reset email delivery is delayed or blocked by a spam filter.",
+      "Reset link has expired (typically valid for a limited time window).",
+      "Reset link was already used once and cannot be reused.",
+      "The new password does not meet the platform's complexity requirements."
+    ],
+    "steps": [
+      "Confirm the customer's email address on file is correct and active.",
+      "Ask the customer to check spam/junk folders for the reset email.",
+      "Confirm the reset link is being used within its valid time window.",
+      "If expired, trigger a new reset email from the account.",
+      "Confirm the new password meets the platform's complexity rules."
+    ],
+    "decision": "If a fresh reset link (used promptly) still fails, this points to an email delivery or token-generation problem, not user error.",
+    "solution": "Trigger a new password reset email and confirm the customer completes the flow within the valid time window using a compliant password.",
+    "escalation": "Escalate if reset emails are not being delivered to multiple customers, which may indicate an email delivery service outage.",
+    "team": "Identity & Access Team",
+    "related": [
+      "AUTH-001 (Login Failure)",
+      "NOTIF-001 (Email Notification Not Received)"
+    ]
+  },
+  {
+    "guide_id": "AUTH-003",
+    "title": "Session Expiration",
+    "collection": "common",
+    "category": "Authentication",
+    "identifier": "User is logged out unexpectedly with a \"Session expired\" message",
+    "problem": "A customer is unexpectedly logged out of the application while actively using it, well before any expected timeout.",
+    "visual": [
+      "User is logged out unexpectedly with a \"Session expired\" message",
+      "Sudden redirect to login screen mid-action, captured in a screen recording",
+      "\"Session expired, please log in again\" toast/banner",
+      "Browser dev tools showing the auth token cookie missing or invalidated"
+    ],
+    "symptoms": [
+      "Customer is redirected to the login page mid-session with no warning.",
+      "Message displayed: 'Session expired' or 'Please log in again'.",
+      "Occurs repeatedly, sometimes within minutes of logging in."
+    ],
+    "causes": [
+      "Session token expired earlier than expected due to a configuration issue.",
+      "The token refresh mechanism is failing silently in the background.",
+      "Customer has multiple tabs/devices open, causing session conflicts.",
+      "System clock mismatch between client and server affecting token validity."
+    ],
+    "steps": [
+      "Confirm how frequently the session is expiring and under what conditions.",
+      "Check whether the token refresh service is functioning correctly.",
+      "Ask the customer to close duplicate tabs or sign out of other devices.",
+      "Verify the customer's device clock is set correctly and synced.",
+      "Have the customer fully log out and back in to establish a clean session."
+    ],
+    "decision": "If expiration happens well below the configured timeout and is not explained by client-side factors, treat this as a token-refresh defect.",
+    "solution": "Restore the token refresh mechanism if it was failing, or advise the customer to use a single active session if conflicts were the cause.",
+    "escalation": "Escalate if sessions expire well below the configured timeout and cannot be traced to a client-side cause.",
+    "team": "Identity & Access Team",
+    "related": [
+      "AUTH-001 (Login Failure)",
+      "AUTH-004 (Permission Denied)"
+    ]
+  },
+  {
+    "guide_id": "AUTH-004",
+    "title": "Permission Denied",
+    "collection": "common",
+    "category": "Authentication",
+    "identifier": "\"Permission denied\" or \"You do not have access\" error on a specific feature",
+    "problem": "A customer can log in successfully but is blocked from accessing a specific feature, page, or data set they expect to have access to.",
+    "visual": [
+      "\"Permission denied\" or \"You do not have access\" error on a specific feature",
+      "\"You do not have permission to view this page\" error screen",
+      "Feature/menu item visibly missing compared to a screenshot from before",
+      "Admin panel screenshot showing the user's current role/permission set"
+    ],
+    "symptoms": [
+      "Error message: 'Permission denied' or 'You do not have access to this resource'.",
+      "The feature or menu item is missing entirely from the customer's view.",
+      "Access worked previously and stopped after a role or plan change."
+    ],
+    "causes": [
+      "The customer's user role does not include the required permission.",
+      "The account's subscription plan does not include the requested feature.",
+      "A permission was recently changed or revoked by an account administrator.",
+      "A caching issue is showing outdated permission data."
+    ],
+    "steps": [
+      "Confirm the customer's assigned role and its associated permissions.",
+      "Confirm the account's current subscription plan includes the feature.",
+      "Check the account's permission change history for recent updates.",
+      "Ask the customer to log out and back in to refresh cached permission data.",
+      "If permissions look correct but access still fails, check for a caching/sync delay."
+    ],
+    "decision": "If the role and plan clearly should grant access but the system still denies it after a fresh login, this is a permission-evaluation bug.",
+    "solution": "Update the role or plan as appropriate (with administrator approval), or resolve the caching issue with a fresh login, then confirm access.",
+    "escalation": "Escalate if the role and plan clearly should grant access but the system still denies it after a fresh login.",
+    "team": "Identity & Access Team",
+    "related": [
+      "AUTH-001 (Login Failure)",
+      "CONFIG-003 (User Permission Configuration)"
+    ]
+  },
+  {
+    "guide_id": "AUTH-005",
+    "title": "SSO Authentication Failure",
+    "collection": "common",
+    "category": "Authentication",
+    "identifier": "SSO login fails or redirect loop occurs at the identity provider",
+    "problem": "A customer using Single Sign-On (SSO) is unable to authenticate into the platform through their organization's identity provider.",
+    "visual": [
+      "SSO login fails or redirect loop occurs at the identity provider",
+      "Identity provider's own error page (e.g. \"AADSTS...\" Azure AD error code)",
+      "Redirect loop between the platform login and the IdP login screen",
+      "\"SSO configuration error\" message on the platform's login page"
+    ],
+    "symptoms": [
+      "Customer is redirected to their IdP but the login does not complete.",
+      "An error code specific to the IdP is displayed (e.g., SAML or OAuth error).",
+      "May affect all users of an organization or only specific ones."
+    ],
+    "causes": [
+      "The SSO/SAML configuration between the platform and the IdP is misconfigured.",
+      "SSL certificate used for the SSO connection has expired.",
+      "The specific user is not provisioned or assigned correctly in the IdP.",
+      "The identity provider itself is experiencing an outage."
+    ],
+    "steps": [
+      "Confirm whether the issue affects all users of the organization or just one.",
+      "Check the SSO configuration's certificate expiry date.",
+      "Verify the affected user's provisioning status in the IdP.",
+      "Check the identity provider's own status page for ongoing incidents.",
+      "Review the exact IdP error code returned, if any, for a specific cause."
+    ],
+    "decision": "If it affects only one user, focus on their IdP provisioning; if it affects the whole organization, focus on the SSO configuration/certificate.",
+    "solution": "Renew the expired certificate, correct the SSO configuration, or provision the affected user correctly in the IdP, then confirm login succeeds.",
+    "escalation": "Escalate if the SSO configuration is confirmed correct but authentication still fails for the organization.",
+    "team": "Identity & Access Team",
+    "related": [
+      "AUTH-001 (Login Failure)",
+      "COMP-007 (SSO Works for Some Users but Not Others)"
+    ]
+  },
+  {
+    "guide_id": "BILL-001",
+    "title": "Payment Failure",
+    "collection": "common",
+    "category": "Billing",
+    "identifier": "Payment attempt is declined or fails at checkout",
+    "problem": "A customer's payment attempt (subscription charge or one-time purchase) fails to process successfully.",
+    "visual": [
+      "Payment attempt is declined or fails at checkout",
+      "Checkout screen showing \"Payment declined\" or \"Card was not approved\"",
+      "Payment gateway error code shown to the customer or in logs",
+      "Bank/card statement showing a declined authorization attempt"
+    ],
+    "symptoms": [
+      "Payment attempt returns a decline or failure message.",
+      "Customer's card may have worked previously for other charges.",
+      "Failure may be immediate or occur after a processing delay."
+    ],
+    "causes": [
+      "Card has expired or has insufficient funds.",
+      "The payment gateway is experiencing a temporary outage.",
+      "The card issuer's fraud detection is blocking the transaction.",
+      "Billing address or CVV does not match the card on file."
+    ],
+    "steps": [
+      "Check the exact decline reason returned by the payment gateway.",
+      "Confirm the card's expiry date and billing details match what's on file.",
+      "Check the payment gateway's status page for ongoing incidents.",
+      "Ask the customer to try an alternate payment method to isolate the cause.",
+      "If a fraud-block is suspected, advise the customer to contact their card issuer."
+    ],
+    "decision": "A specific decline code (insufficient funds, expired card) points to the customer's bank; a generic gateway error points to our payment processor.",
+    "solution": "Guide the customer to update their card details or try an alternate payment method, then confirm the retry succeeds.",
+    "escalation": "Escalate if the payment gateway itself is confirmed degraded and affecting multiple customers.",
+    "team": "Billing Team",
+    "related": [
+      "BILL-002 (Payment Successful but Access Not Updated)",
+      "COMP-011 (Payment Successful but Subscription Webhook Fails)"
+    ]
+  },
+  {
+    "guide_id": "BILL-002",
+    "title": "Payment Successful but Access Not Updated",
+    "collection": "common",
+    "category": "Billing",
+    "identifier": "Payment succeeded on the card/bank statement but account access/plan is unchanged",
+    "problem": "A customer's payment is confirmed as successful, but their account does not reflect the upgraded plan or restored access.",
+    "visual": [
+      "Payment succeeded on the card/bank statement but account access/plan is unchanged",
+      "Bank/card statement showing the charge went through",
+      "Account page still showing the old/expired plan after payment",
+      "Billing history showing 'Paid' status while feature access remains locked"
+    ],
+    "symptoms": [
+      "Customer confirms the charge appears on their bank/card statement.",
+      "Account still shows the old plan or a locked/restricted state.",
+      "Feature access has not been unlocked despite successful payment."
+    ],
+    "causes": [
+      "The webhook that notifies the platform of a successful payment failed to deliver.",
+      "There is a processing delay between payment confirmation and account update.",
+      "The payment was applied to the wrong account or subscription ID.",
+      "An error occurred in the account provisioning step after payment."
+    ],
+    "steps": [
+      "Confirm the payment status directly in the payment gateway's dashboard.",
+      "Check whether the corresponding webhook event was received and processed.",
+      "Confirm the payment was linked to the correct account/subscription ID.",
+      "Manually trigger the account provisioning step if the automated one failed.",
+      "Confirm the customer's access reflects the new plan after the manual update."
+    ],
+    "decision": "If the webhook was never received, this is a delivery problem to fix at the integration level, not just a one-off manual correction.",
+    "solution": "Manually apply the correct plan/access to unblock the customer immediately, and fix the underlying webhook delivery issue to prevent recurrence.",
+    "escalation": "Escalate if webhook delivery failures are recurring rather than a one-time incident, since this indicates a systemic integration issue.",
+    "team": "Billing Team",
+    "related": [
+      "BILL-001 (Payment Failure)",
+      "COMP-011 (Payment Successful but Subscription Webhook Fails)"
+    ]
+  },
+  {
+    "guide_id": "BILL-003",
+    "title": "Incorrect Invoice",
+    "collection": "common",
+    "category": "Billing",
+    "identifier": "Invoice shows an amount or line item the customer does not recognize",
+    "problem": "A customer's invoice shows an amount, plan, or line item that does not match what they expect to be billed.",
+    "visual": [
+      "Invoice shows an amount or line item the customer does not recognize",
+      "PDF/screenshot of the invoice with the incorrect line item highlighted",
+      "Side-by-side of expected vs. actual charge amount",
+      "Account billing history showing a plan change the customer doesn't recognize"
+    ],
+    "symptoms": [
+      "Customer reports being charged an incorrect amount.",
+      "Invoice shows a plan or add-on the customer does not recognize.",
+      "Discrepancy appeared after a plan change, upgrade, or renewal."
+    ],
+    "causes": [
+      "Proration was calculated incorrectly during a mid-cycle plan change.",
+      "An add-on or seat was added but not clearly communicated to the customer.",
+      "Currency or tax configuration mismatch for the account's billing region.",
+      "A billing system calculation error in a specific edge case."
+    ],
+    "steps": [
+      "Pull the account's billing history and compare it against the current invoice.",
+      "Check for recent plan changes, upgrades, or added seats/add-ons.",
+      "Verify tax and currency settings match the customer's billing region.",
+      "If a proration error is confirmed, manually calculate the correct adjustment.",
+      "Do not issue any refund or credit without Billing Team approval."
+    ],
+    "decision": "Any invoice correction involving a refund or credit must go through Billing Team approval — never resolve financial adjustments unilaterally.",
+    "solution": "Once the discrepancy is confirmed and approved, issue the correct invoice adjustment or credit and confirm the customer's next invoice reflects the fix.",
+    "escalation": "Always escalate to the Billing Team for any refund, credit, or invoice correction, and if the discrepancy pattern affects multiple customers.",
+    "team": "Billing Team",
+    "related": [
+      "BILL-001 (Payment Failure)",
+      "REP-004 (Incorrect Report Data)"
+    ]
+  },
+  {
+    "guide_id": "CONFIG-001",
+    "title": "Email Configuration Failure",
+    "collection": "common",
+    "category": "Configuration",
+    "identifier": "\"SMTP authentication failed\" when sending outgoing email",
+    "problem": "A customer cannot send outgoing emails from the platform because their email/SMTP configuration is incorrect.",
+    "visual": [
+      "\"SMTP authentication failed\" when sending outgoing email",
+      "\"SMTP authentication failed\" error in account settings",
+      "Test email send button showing a red failure indicator",
+      "Bounce-back message screenshot from the customer's mail server"
+    ],
+    "symptoms": [
+      "Outgoing emails fail silently or return a bounce/error message.",
+      "Feature worked previously and stopped after a settings change.",
+      "Error log shows SMTP authentication or connection failure."
+    ],
+    "causes": [
+      "Incorrect SMTP host, port, or encryption (TLS/SSL) setting.",
+      "Expired or revoked SMTP credentials or API key.",
+      "Sending domain is not verified (SPF/DKIM misconfiguration).",
+      "The outbound email provider account is suspended or over its sending quota."
+    ],
+    "steps": [
+      "Confirm the SMTP host, port, and encryption values in account settings.",
+      "Send a test email and capture the exact error returned.",
+      "Verify SMTP credentials are current; regenerate the API key if expired.",
+      "Check domain verification status (SPF/DKIM) in the email provider console.",
+      "Confirm the sending account is active and within its sending quota."
+    ],
+    "decision": "If SMTP settings and domain verification both check out but sending still fails, treat this as a provider-side account issue.",
+    "solution": "Correct the SMTP settings, verify domain records, and confirm test emails deliver successfully to a real inbox.",
+    "escalation": "Escalate if domain verification and SMTP settings all appear correct but emails still fail to send.",
+    "team": "Application Support Team",
+    "related": [
+      "CONFIG-002 (Notification Configuration Failure)",
+      "NOTIF-001 (Email Notification Not Received)"
+    ]
+  },
+  {
+    "guide_id": "CONFIG-002",
+    "title": "Notification Configuration Failure",
+    "collection": "common",
+    "category": "Configuration",
+    "identifier": "Expected notification is not received despite settings appearing enabled",
+    "problem": "A customer is not receiving expected in-app, email, or push notifications due to notification settings on their account.",
+    "visual": [
+      "Expected notification is not received despite settings appearing enabled",
+      "Notification settings page showing a toggle unexpectedly off",
+      "Empty notification center despite a triggering event occurring",
+      "Test-notification button producing no result on the customer's device"
+    ],
+    "symptoms": [
+      "Customer reports missing notifications for events that should trigger them.",
+      "Notification settings appear enabled but nothing is received.",
+      "Some notification types work while others do not."
+    ],
+    "causes": [
+      "The specific notification type is disabled in the customer's preferences.",
+      "The notification delivery channel (email/in-app/push) is misconfigured.",
+      "Account-level notification settings are overriding user-level preferences.",
+      "A recent update reset notification preferences to default."
+    ],
+    "steps": [
+      "Confirm which specific notification type is missing.",
+      "Check the customer's notification preferences for that type and channel.",
+      "Check account-level notification settings for conflicting overrides.",
+      "Confirm the delivery channel (email/in-app/push) is correctly enabled.",
+      "Trigger a test event and confirm whether the notification is received."
+    ],
+    "decision": "If preferences are enabled at both the user and account level but the notification still doesn't arrive, the issue is in the delivery pipeline, not settings.",
+    "solution": "Correct the notification preference or delivery channel setting and confirm the customer receives a test notification.",
+    "escalation": "Escalate if preferences are correctly configured but the notification is still not delivered.",
+    "team": "Application Support Team",
+    "related": [
+      "CONFIG-001 (Email Configuration Failure)",
+      "NOTIF-001 (Email Notification Not Received)"
+    ]
+  },
+  {
+    "guide_id": "CONFIG-003",
+    "title": "User Permission Configuration",
+    "collection": "common",
+    "category": "Configuration",
+    "identifier": "A specific user's role is missing a permission that should be present",
+    "problem": "An account administrator has configured user roles or permissions in a way that unintentionally blocks legitimate access for one or more users.",
+    "visual": [
+      "A specific user's role is missing a permission that should be present",
+      "Admin role-editor screen showing a missing permission checkbox",
+      "Comparison screenshot of two users' roles side-by-side",
+      "Error message referencing the specific missing permission name"
+    ],
+    "symptoms": [
+      "A user cannot access a feature the administrator believes they should have.",
+      "Multiple users on an account report inconsistent access to the same feature.",
+      "Access worked previously and stopped after a role/permission change."
+    ],
+    "causes": [
+      "The user's assigned role does not include the required permission.",
+      "A custom role was created without the necessary permission included.",
+      "Permission inheritance from a parent group/team is misconfigured.",
+      "A recent bulk role change was applied incorrectly."
+    ],
+    "steps": [
+      "Confirm the specific user's assigned role and its permission set.",
+      "Compare against the permissions required for the feature in question.",
+      "Check whether a custom role is missing an expected permission.",
+      "Review any recent bulk role or permission changes on the account.",
+      "Update the role/permission and confirm access is restored."
+    ],
+    "decision": "If the permission structure looks correct on paper but access is still denied, suspect a permission-evaluation defect rather than a configuration mistake.",
+    "solution": "Update the affected role to include the required permission, or reassign the user to a role that already has it, then confirm access.",
+    "escalation": "Escalate if the permission structure is correct but access is still denied, which may indicate a permission-evaluation defect.",
+    "team": "Application Support Team",
+    "related": [
+      "AUTH-004 (Permission Denied)",
+      "COMP-001 (Feature Works for One User but Not Another)"
+    ]
+  },
+  {
+    "guide_id": "CONFIG-004",
+    "title": "Account Configuration Issue",
+    "collection": "common",
+    "category": "Configuration",
+    "identifier": "An account-level setting (timezone/region/currency) produces wrong downstream behavior",
+    "problem": "A general account-level setting (timezone, region, default currency, workspace settings) is misconfigured, causing unexpected behavior elsewhere in the platform.",
+    "visual": [
+      "An account-level setting (timezone/region/currency) produces wrong downstream behavior",
+      "Account settings page showing an obviously wrong value (e.g. wrong timezone/region)",
+      "Downstream effect screenshot (e.g. wrong timestamps caused by the setting)",
+      "Settings change history log showing a recent edit"
+    ],
+    "symptoms": [
+      "A downstream feature (reports, invoices, notifications) behaves incorrectly.",
+      "No error message is shown, just unexpected output tied to account settings.",
+      "Issue started after an account-level setting was changed."
+    ],
+    "causes": [
+      "A setting was changed incorrectly, intentionally or by mistake.",
+      "Default configuration was never adjusted for the customer's actual use case.",
+      "Two related account settings are in conflict with each other.",
+      "A configuration change has not yet propagated/taken effect."
+    ],
+    "steps": [
+      "Identify exactly which account setting controls the affected downstream behavior.",
+      "Compare the current value against the recommended or default value.",
+      "Check the account's configuration change history for recent edits.",
+      "Check for conflicting settings that may override each other.",
+      "Correct the setting and confirm the downstream behavior returns to normal."
+    ],
+    "decision": "Trace the downstream symptom back to its root account setting before making any change — do not patch the symptom directly.",
+    "solution": "Correct the misconfigured account-level setting and confirm the downstream feature now behaves as expected.",
+    "escalation": "Escalate if the setting appears correct but the downstream behavior still does not match documentation.",
+    "team": "Application Support Team",
+    "related": [
+      "CONFIG-005 (Feature Configuration Issue)",
+      "REP-004 (Incorrect Report Data)"
+    ]
+  },
+  {
+    "guide_id": "CONFIG-005",
+    "title": "Feature Configuration Issue",
+    "collection": "common",
+    "category": "Configuration",
+    "identifier": "A feature's own settings panel value does not match its actual behavior",
+    "problem": "A specific feature is set up incorrectly by the customer or an administrator, causing it to behave differently than expected.",
+    "visual": [
+      "A feature's own settings panel value does not match its actual behavior",
+      "Feature's own settings panel showing an unexpected value or toggle state",
+      "Before/after screenshot showing the feature's behavior changed after a setting edit",
+      "Feature configuration change log"
+    ],
+    "symptoms": [
+      "The feature runs but produces output that doesn't match the customer's setup.",
+      "No error message is shown, just a mismatch between configuration and result.",
+      "Issue started right after a feature-specific setting was changed."
+    ],
+    "causes": [
+      "A feature-specific setting was changed incorrectly.",
+      "The feature's default configuration doesn't suit the customer's use case.",
+      "A dependency between this feature and another setting was not accounted for.",
+      "Cached configuration is serving an outdated value."
+    ],
+    "steps": [
+      "Identify the specific feature setting believed to be causing the behavior.",
+      "Compare the current configuration against the documented recommended setup.",
+      "Check the feature's configuration change history.",
+      "Check for a dependent setting elsewhere that could be overriding this one.",
+      "Correct the configuration and confirm the feature now behaves as expected."
+    ],
+    "decision": "If the configuration matches documentation exactly but behavior is still wrong, this is a feature-logic bug, not a setup mistake.",
+    "solution": "Correct the feature-specific configuration value and confirm the feature's output now matches the customer's expectation.",
+    "escalation": "Escalate if the configuration is confirmed correct per documentation but the feature still behaves incorrectly.",
+    "team": "Application Support Team",
+    "related": [
+      "CONFIG-004 (Account Configuration Issue)",
+      "APP-003 (Feature Not Working)"
+    ]
+  },
+  {
+    "guide_id": "DATA-001",
+    "title": "Data Synchronization Failure",
+    "collection": "common",
+    "category": "Data",
+    "identifier": "Data created/changed in one connected system does not appear in the other",
+    "problem": "Data fails to sync correctly between two connected systems (e.g., mobile and web, or the platform and a third-party tool).",
+    "visual": [
+      "Data created/changed in one connected system does not appear in the other",
+      "Sync status indicator showing \"Failed\" or a red error icon",
+      "Side-by-side screenshot showing data present on one platform but missing on the other",
+      "Sync log showing a specific failed job entry"
+    ],
+    "symptoms": [
+      "Changes made in one system do not appear in the other.",
+      "A sync status indicator shows a failed or stalled state.",
+      "Issue may be one-directional (only failing one way) or affect both directions."
+    ],
+    "causes": [
+      "An expired or invalid authentication token between the two systems.",
+      "A network interruption occurred during the sync process.",
+      "A schema mismatch between the two systems' data models.",
+      "The sync job itself is stuck or has silently failed in the queue."
+    ],
+    "steps": [
+      "Check the sync job queue for the customer's stuck or failed job.",
+      "Confirm the authentication token between the two systems is still valid.",
+      "Check for a recent schema change on either system that could cause a mismatch.",
+      "Manually re-trigger the sync job and monitor the result.",
+      "Confirm data now matches on both systems after the re-trigger."
+    ],
+    "decision": "A one-time stuck job can be manually re-triggered; a repeatedly failing sync points to a token or schema problem that needs a real fix.",
+    "solution": "Refresh the expired token, correct the schema mapping, or manually re-trigger the stuck job, then confirm both systems show matching data.",
+    "escalation": "Escalate if the sync fails repeatedly even after a manual re-trigger and valid credentials.",
+    "team": "Application Support Team",
+    "related": [
+      "DATA-002 (Data Import Failure)",
+      "COMP-004 (Data Synchronization Partially Fails)"
+    ]
+  },
+  {
+    "guide_id": "DATA-002",
+    "title": "Data Import Failure",
+    "collection": "common",
+    "category": "Data",
+    "identifier": "File import fails entirely or specific rows are rejected",
+    "problem": "A customer attempts to import data (via file upload or integration) and the import process fails or completes with errors.",
+    "visual": [
+      "File import fails entirely or specific rows are rejected",
+      "Import summary screen showing \"X rows failed\" with an error count",
+      "Uploaded file screenshot showing a formatting issue (wrong column headers, encoding)",
+      "Error log listing specific row numbers that failed"
+    ],
+    "symptoms": [
+      "Import process fails entirely or completes with partial errors.",
+      "Error message references a specific row, column, or field.",
+      "Some records import successfully while others are rejected."
+    ],
+    "causes": [
+      "The uploaded file's format doesn't match the expected template (wrong columns, headers).",
+      "Specific rows contain invalid data types or missing required fields.",
+      "The file exceeds the maximum allowed size or row count.",
+      "A character encoding mismatch is corrupting special characters."
+    ],
+    "steps": [
+      "Review the import error log for the specific rows/fields that failed.",
+      "Compare the uploaded file's structure against the required import template.",
+      "Check for missing required fields or invalid data types in the failed rows.",
+      "Confirm the file size and row count are within platform limits.",
+      "Ask the customer to correct the flagged rows and re-attempt the import."
+    ],
+    "decision": "If the file matches the template exactly and specific valid rows still fail, this points to an import-logic bug rather than a file formatting issue.",
+    "solution": "Guide the customer to correct the file format or flagged rows, then confirm a re-attempted import completes successfully.",
+    "escalation": "Escalate if correctly formatted, valid data still fails to import.",
+    "team": "Application Support Team",
+    "related": [
+      "DATA-001 (Data Synchronization Failure)",
+      "DATA-004 (Duplicate Records)"
+    ]
+  },
+  {
+    "guide_id": "DATA-003",
+    "title": "Data Export Failure",
+    "collection": "common",
+    "category": "Data",
+    "identifier": "\"Export could not be completed\" error during data export",
+    "problem": "A customer attempts to export data out of the platform and the export process fails or produces an incomplete file.",
+    "visual": [
+      "\"Export could not be completed\" error during data export",
+      "\"Export could not be completed\" error message",
+      "Export progress bar stuck or stalled indefinitely",
+      "Downloaded file that opens with missing or truncated rows"
+    ],
+    "symptoms": [
+      "Export button does nothing, or the export fails partway through.",
+      "Error message: 'Export could not be completed.'",
+      "Issue is reproducible on large exports (e.g., over 10,000 rows)."
+    ],
+    "causes": [
+      "Export job times out when processing very large datasets.",
+      "The background export worker queue is backed up.",
+      "The browser is blocking the download pop-up for the exported file.",
+      "The requested export format has a known limitation with certain characters."
+    ],
+    "steps": [
+      "Confirm the size of the data being exported.",
+      "If large, ask the customer to filter the date range or dataset before exporting.",
+      "Check the export worker queue for backlog or failed jobs.",
+      "Ask the customer to allow pop-ups/downloads for the site.",
+      "Manually trigger the export job from the admin console if needed."
+    ],
+    "decision": "If a smaller filtered export succeeds but the full export fails, the issue is a size/timeout limitation, not a data problem.",
+    "solution": "Guide the customer to export in smaller batches, or clear the export queue backlog, then confirm the export completes.",
+    "escalation": "Escalate if the export queue is systemically backed up and affecting multiple customers.",
+    "team": "Application Support Team",
+    "related": [
+      "DATA-002 (Data Import Failure)",
+      "REP-003 (Report Export Failure)"
+    ]
+  },
+  {
+    "guide_id": "DATA-004",
+    "title": "Duplicate Records",
+    "collection": "common",
+    "category": "Data",
+    "identifier": "The same record appears more than once in a list or report",
+    "problem": "The same record (contact, transaction, item) appears more than once in the customer's data, when it should appear only once.",
+    "visual": [
+      "The same record appears more than once in a list or report",
+      "List view showing two visibly identical rows/records",
+      "Record IDs shown side-by-side proving they are separate entries with the same data",
+      "Sync/import log showing the same source record processed twice"
+    ],
+    "symptoms": [
+      "Customer sees the same record listed multiple times.",
+      "Duplicate records may have identical or near-identical field values.",
+      "Issue often appears after a sync, import, or integration event."
+    ],
+    "causes": [
+      "A sync or import process ran twice on the same source data.",
+      "A pagination bug caused an integration to fetch the same records repeatedly.",
+      "No unique-identifier matching rule exists to prevent duplicate creation.",
+      "A retry mechanism resubmitted a request that had actually already succeeded."
+    ],
+    "steps": [
+      "Confirm how the duplicate records were created (import, sync, manual entry).",
+      "Check integration/import logs for repeated processing of the same source record.",
+      "Check whether a unique-identifier de-duplication rule exists and is functioning.",
+      "Identify and safely merge or remove the duplicate records.",
+      "Confirm no data was lost in the merge/removal process."
+    ],
+    "decision": "Never delete a record without confirming which one is the 'source of truth' — merging is safer than deletion when data might differ between duplicates.",
+    "solution": "Merge or remove the duplicate records after confirming no data loss, and fix the underlying cause (pagination bug, retry logic, missing dedup rule).",
+    "escalation": "Escalate if duplicates are actively being created on an ongoing basis rather than a one-time historical issue.",
+    "team": "Application Support Team",
+    "related": [
+      "DATA-005 (Missing Records)",
+      "DATA-001 (Data Synchronization Failure)"
+    ]
+  },
+  {
+    "guide_id": "DATA-005",
+    "title": "Missing Records",
+    "collection": "common",
+    "category": "Data",
+    "identifier": "An expected record cannot be found anywhere in the platform",
+    "problem": "A customer expects to see a specific record (contact, transaction, file) in the platform, but it does not appear anywhere.",
+    "visual": [
+      "An expected record cannot be found anywhere in the platform",
+      "Search results screenshot showing zero results for a record the customer expects",
+      "Filter/view screenshot proving the record isn't hidden by a filter",
+      "Source system screenshot proving the record exists there but not on the platform"
+    ],
+    "symptoms": [
+      "A specific expected record cannot be found anywhere in the platform.",
+      "Customer confirms the record exists in the source system (if synced/imported).",
+      "May affect a single record or a batch from the same import/sync event."
+    ],
+    "causes": [
+      "The record failed silently during an import or sync process.",
+      "The record is hidden by an active filter or view setting.",
+      "The record was accidentally deleted or archived.",
+      "A permissions restriction is hiding the record from this specific user."
+    ],
+    "steps": [
+      "Confirm the customer isn't viewing through a filter that would hide the record.",
+      "Check the import/sync logs for that specific record around the expected time.",
+      "Check whether the record was deleted or archived in the activity log.",
+      "Confirm the customer's permissions allow visibility of this record type.",
+      "If missing from an import, manually re-import just that record."
+    ],
+    "decision": "Always rule out filters and permissions first — these account for the majority of 'missing' record reports and require no data recovery.",
+    "solution": "Remove the hiding filter, restore the archived record, adjust permissions, or manually re-import the missing record, then confirm visibility.",
+    "escalation": "Escalate if the record cannot be located anywhere, including logs, and may indicate actual data loss.",
+    "team": "Application Support Team",
+    "related": [
+      "DATA-004 (Duplicate Records)",
+      "DATA-002 (Data Import Failure)"
+    ]
+  },
+  {
+    "guide_id": "NOTIF-001",
+    "title": "Email Notification Not Received",
+    "collection": "common",
+    "category": "Notifications",
+    "identifier": "Expected email notification never arrives (inbox and spam both empty)",
+    "problem": "A customer expects to receive a specific email notification (alert, confirmation, digest) from the platform, but it never arrives.",
+    "visual": [
+      "Expected email notification never arrives (inbox and spam both empty)",
+      "Empty inbox and spam folder screenshot from the customer",
+      "Email delivery log showing the message as \"sent\" but not \"delivered\"",
+      "Notification settings screen showing the relevant toggle enabled"
+    ],
+    "symptoms": [
+      "Customer confirms the triggering event occurred but no email arrived.",
+      "Spam and junk folders have been checked and are empty.",
+      "Other email types from the platform may still be arriving normally."
+    ],
+    "causes": [
+      "The email was blocked or filtered by the customer's spam filter.",
+      "The customer's email address on file is outdated or incorrect.",
+      "The notification preference for this specific email type is disabled.",
+      "The email delivery service experienced a delay or partial outage."
+    ],
+    "steps": [
+      "Confirm the customer's email address on file is correct and active.",
+      "Ask the customer to check spam/junk folders thoroughly.",
+      "Check the notification preference for this specific email type.",
+      "Check the email delivery service's logs for this message's delivery status.",
+      "Send a manual test notification to confirm delivery works."
+    ],
+    "decision": "If the delivery log shows the email was sent successfully but never arrived, focus on the customer's spam filter or email provider, not the platform's sending logic.",
+    "solution": "Correct the email address, enable the notification preference, or resend the notification once delivery is confirmed working.",
+    "escalation": "Escalate if the email delivery service itself shows failures affecting multiple customers.",
+    "team": "Application Support Team",
+    "related": [
+      "CONFIG-001 (Email Configuration Failure)",
+      "CONFIG-002 (Notification Configuration Failure)"
+    ]
+  },
+  {
+    "guide_id": "REP-001",
+    "title": "Report Generation Failure",
+    "collection": "common",
+    "category": "Reporting",
+    "identifier": "Report status stays stuck on \"Processing\" and never completes",
+    "problem": "A customer requests a report but it never completes generating, or the process fails outright.",
+    "visual": [
+      "Report status stays stuck on \"Processing\" and never completes",
+      "Report status stuck at \"Processing\" with a timestamp far in the past",
+      "\"Report generation failed\" error message",
+      "Report job queue screenshot showing a stalled or errored job"
+    ],
+    "symptoms": [
+      "Customer clicks 'Generate Report' and nothing happens after a long wait.",
+      "Report status remains stuck at 'Processing' indefinitely.",
+      "No error message is shown; the report simply never appears."
+    ],
+    "causes": [
+      "The report generation job is stuck or has silently failed in the queue.",
+      "The requested date range or dataset is too large to process in time.",
+      "A backend reporting service is degraded or unavailable.",
+      "A required data source for the report is temporarily unreachable."
+    ],
+    "steps": [
+      "Check the report job queue for the customer's stuck or failed request.",
+      "Confirm the size of the requested date range/dataset.",
+      "Check the health of the backend reporting service.",
+      "Ask the customer to retry with a smaller date range as a test.",
+      "Manually re-trigger the report generation job if it is confirmed stuck."
+    ],
+    "decision": "If a smaller date range completes successfully, the issue is a size/timeout limitation rather than a service outage.",
+    "solution": "Manually re-trigger the stuck job, or guide the customer to a smaller date range, then confirm the report completes.",
+    "escalation": "Escalate if the reporting service itself is degraded and affecting multiple customers.",
+    "team": "Application Support Team",
+    "related": [
+      "REP-002 (Report Download Failure)",
+      "REP-005 (Scheduled Report Failure)"
+    ]
+  },
+  {
+    "guide_id": "REP-002",
+    "title": "Report Download Failure",
+    "collection": "common",
+    "category": "Reporting",
+    "identifier": "Report finishes generating but the download does not start or completes corrupted",
+    "problem": "A report finishes generating successfully but the customer cannot download the resulting file.",
+    "visual": [
+      "Report finishes generating but the download does not start or completes corrupted",
+      "Download button producing no visible action when clicked",
+      "Browser download-blocked notification icon",
+      "Partial/corrupted file that fails to open, shown in the customer's file explorer"
+    ],
+    "symptoms": [
+      "Download button does nothing when clicked.",
+      "Download starts but the file is incomplete or corrupted.",
+      "Browser blocks the download without any visible reason to the customer."
+    ],
+    "causes": [
+      "The browser is blocking the download pop-up or file download.",
+      "The generated file link has expired before the customer clicked it.",
+      "A network interruption occurred during the file download.",
+      "The file storage service is temporarily unavailable."
+    ],
+    "steps": [
+      "Ask the customer to allow pop-ups/downloads for the site in browser settings.",
+      "Confirm whether the download link has expired; regenerate if needed.",
+      "Ask the customer to retry the download on a stable network connection.",
+      "Check the file storage service status for any ongoing issues.",
+      "Try downloading the same report from an admin/internal account to compare."
+    ],
+    "decision": "If an internal test download succeeds but the customer's fails, the issue is client-side (browser/network), not the file itself.",
+    "solution": "Regenerate the download link if expired, and confirm the customer can successfully download the file after adjusting browser settings.",
+    "escalation": "Escalate if downloads are failing for multiple customers, indicating a file storage service issue.",
+    "team": "Application Support Team",
+    "related": [
+      "REP-001 (Report Generation Failure)",
+      "REP-003 (Report Export Failure)"
+    ]
+  },
+  {
+    "guide_id": "REP-003",
+    "title": "Report Export Failure",
+    "collection": "common",
+    "category": "Reporting",
+    "identifier": "Report export to a specific file format (CSV/Excel/PDF) fails",
+    "problem": "A customer attempts to export a generated report into a specific file format (CSV, Excel, PDF) and the export step fails.",
+    "visual": [
+      "Report export to a specific file format (CSV/Excel/PDF) fails",
+      "Format-specific error (e.g. \"Could not generate PDF\")",
+      "Export progress indicator that stalls at a fixed percentage",
+      "Corrupted/blank file that fails to open in the target application"
+    ],
+    "symptoms": [
+      "Export completes for one format but fails for another.",
+      "Specific characters or fields seem to break the export.",
+      "Issue reproducible for large or specially formatted reports."
+    ],
+    "causes": [
+      "The specific export format has a limitation with certain characters or field types.",
+      "The report contains more rows/columns than the format supports.",
+      "A rendering library issue specific to one export format (e.g., PDF).",
+      "The export worker times out for large report exports."
+    ],
+    "steps": [
+      "Confirm exactly which export format is failing (CSV, Excel, PDF, etc.).",
+      "Check whether specific characters or unusually large fields are present.",
+      "Test exporting a smaller version of the same report to isolate the trigger.",
+      "Check the export worker's logs for the specific failure at that timestamp.",
+      "Try an alternate format as a temporary workaround for the customer."
+    ],
+    "decision": "If only one format fails while others succeed for the identical report, the issue is specific to that format's rendering logic.",
+    "solution": "Provide the customer an alternate format as an immediate workaround, and fix the format-specific rendering or size limitation.",
+    "escalation": "Escalate if a specific export format is confirmed broken and requires a rendering-logic fix.",
+    "team": "Application Support Team",
+    "related": [
+      "REP-001 (Report Generation Failure)",
+      "DATA-003 (Data Export Failure)"
+    ]
+  },
+  {
+    "guide_id": "REP-004",
+    "title": "Incorrect Report Data",
+    "collection": "common",
+    "category": "Reporting",
+    "identifier": "Report totals/values do not match the customer's own source data",
+    "problem": "A report generates and downloads successfully, but the data within it does not match what the customer expects based on their own records.",
+    "visual": [
+      "Report totals/values do not match the customer's own source data",
+      "Report totals highlighted next to the customer's own source data for comparison",
+      "Two versions of the same report from different dates showing inconsistent totals",
+      "Filter panel screenshot showing filters that may not match customer intent"
+    ],
+    "symptoms": [
+      "Report totals or values differ from the customer's own records.",
+      "Data appears to be missing rows or includes unexpected entries.",
+      "Discrepancy appeared after a recent change to the report or data source."
+    ],
+    "causes": [
+      "A timezone mismatch is affecting how date-based data is grouped.",
+      "Report filters are not being applied as the customer expects.",
+      "The underlying data sync has a delay, so recent data is missing.",
+      "A calculation or aggregation error exists in the report logic."
+    ],
+    "steps": [
+      "Compare the report's filters against what the customer intended to apply.",
+      "Check for a timezone setting mismatch affecting date grouping.",
+      "Confirm whether the underlying data sync is current or delayed.",
+      "Regenerate the report and compare against a manual data check.",
+      "Isolate whether the discrepancy is consistent or specific to certain rows."
+    ],
+    "decision": "If the discrepancy is a consistent offset (e.g., always off by one day), suspect timezone handling; if it's inconsistent, suspect an aggregation bug.",
+    "solution": "Correct the timezone or filter setting causing the mismatch, or explain the data sync delay to the customer, then confirm the regenerated report matches expectations.",
+    "escalation": "Escalate if the report logic itself appears to be calculating values incorrectly, since this requires a code-level fix.",
+    "team": "Application Support Team",
+    "related": [
+      "REP-001 (Report Generation Failure)",
+      "APP-005 (Data Display Error)"
+    ]
+  },
+  {
+    "guide_id": "REP-005",
+    "title": "Scheduled Report Failure",
+    "collection": "common",
+    "category": "Reporting",
+    "identifier": "A scheduled report does not arrive at its configured time",
+    "problem": "A report that is scheduled to run and deliver automatically fails to arrive on its expected schedule.",
+    "visual": [
+      "A scheduled report does not arrive at its configured time",
+      "Schedule settings screen showing the configured time and recipients",
+      "Delivery log showing no execution at the scheduled time",
+      "Email inbox with no scheduled report present at the expected time"
+    ],
+    "symptoms": [
+      "The scheduled report does not arrive at its configured time.",
+      "No error is visible to the customer; the report simply doesn't appear.",
+      "May happen once or on every scheduled occurrence."
+    ],
+    "causes": [
+      "The scheduling job itself failed to trigger.",
+      "The report's recipient list or delivery email is misconfigured.",
+      "A timezone mismatch causes the report to run at an unexpected time.",
+      "The report generation step failed silently before delivery could occur."
+    ],
+    "steps": [
+      "Check the scheduling system's logs for whether the job triggered at all.",
+      "Confirm the configured recipient list and delivery email are correct.",
+      "Check the account's timezone setting against the scheduled time.",
+      "Check whether report generation itself failed before the delivery step.",
+      "Manually trigger the scheduled report as a test."
+    ],
+    "decision": "If the schedule never triggers at all, focus on the scheduling engine; if it triggers but generation fails, treat as a REP-001 style issue.",
+    "solution": "Correct the schedule configuration, recipient list, or timezone setting, then confirm the next scheduled run delivers successfully.",
+    "escalation": "Escalate if the scheduling job is confirmed not triggering at all, which may indicate a scheduler-service defect.",
+    "team": "Application Support Team",
+    "related": [
+      "REP-001 (Report Generation Failure)",
+      "CONFIG-004 (Account Configuration Issue)"
+    ]
+  },
+  {
+    "guide_id": "WORK-001",
+    "title": "Workflow or Automation Not Triggering",
+    "collection": "common",
+    "category": "Workflow / Automation",
+    "identifier": "An automation/workflow does not run when its trigger condition is met",
+    "problem": "A customer has configured an automated workflow (trigger-action rule) that does not run when its trigger condition is met.",
+    "visual": [
+      "An automation/workflow does not run when its trigger condition is met",
+      "Workflow builder screenshot showing the trigger and action configuration",
+      "Activity log showing no execution entries despite the trigger event occurring",
+      "Comparison of a working vs. non-working workflow's settings"
+    ],
+    "symptoms": [
+      "The workflow's expected action never occurs despite the trigger condition being met.",
+      "No error message is shown to the customer; the automation is simply silent.",
+      "Other workflows on the same account may be functioning normally."
+    ],
+    "causes": [
+      "The trigger condition is configured more narrowly than the customer intends.",
+      "The workflow was accidentally disabled or paused.",
+      "A permission issue is preventing the workflow's action step from executing.",
+      "The workflow engine is experiencing a processing delay or backlog."
+    ],
+    "steps": [
+      "Confirm the workflow is enabled/active, not paused or disabled.",
+      "Review the exact trigger condition configuration for narrowness or mismatch.",
+      "Check the workflow's execution log for any attempted but failed runs.",
+      "Confirm the workflow has permission to perform its configured action.",
+      "Manually trigger a test event to confirm whether the workflow fires."
+    ],
+    "decision": "If the execution log shows zero attempts at all, the trigger condition itself isn't matching; if it shows failed attempts, the action step is the problem.",
+    "solution": "Correct the trigger condition, re-enable the workflow, or resolve the permission blocking the action, then confirm a test trigger fires successfully.",
+    "escalation": "Escalate if the workflow engine shows a processing backlog affecting multiple customers' automations.",
+    "team": "Application Support Team",
+    "related": [
+      "APP-003 (Feature Not Working)",
+      "COMP-008 (Webhook Received but Business Action Does Not Occur)"
+    ]
+  },
+  {
+    "guide_id": "COMP-001",
+    "title": "Feature Works for One User but Not Another",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Identical feature works for User A but fails for User B on the same account",
+    "problem": "The exact same feature functions correctly for one user in an organization but fails or behaves differently for another user in the same account.",
+    "visual": [
+      "Identical feature works for User A but fails for User B on the same account",
+      "Two screenshots side-by-side: same feature, same account, different users, different results",
+      "Role/permission comparison screenshot for both users",
+      "Browser console showing an error only under one user's session"
+    ],
+    "symptoms": [
+      "One user reports the feature works; another on the same account reports it fails.",
+      "Both users are on the same account/organization and plan.",
+      "No account-wide outage is occurring since other users are unaffected."
+    ],
+    "causes": [
+      "The two users have different roles or permission sets.",
+      "Individual user-level settings or preferences differ.",
+      "One user's session/cache is in a different state than the other's.",
+      "A user-specific data condition (e.g., missing profile field) affects only one of them."
+    ],
+    "steps": [
+      "Compare both users' roles and permissions side-by-side.",
+      "Compare individual account settings and preferences between the two users.",
+      "Ask the affected user to clear cache/cookies and retry in a fresh session.",
+      "Check for any user-specific data condition unique to the failing user.",
+      "Attempt to reproduce the failure using a test account configured identically to the affected user."
+    ],
+    "decision": "If a role, permission, or setting difference is found, correct it directly. If both users are configured identically and one still fails, escalate for application-level investigation.",
+    "solution": "Align the failing user's role, settings, or data condition to match the working user, and confirm the feature now works for both.",
+    "escalation": "Escalate if both users are confirmed to have identical configurations yet one consistently fails.",
+    "team": "Application Support Team",
+    "related": [
+      "AUTH-004 (Permission Denied)",
+      "CONFIG-003 (User Permission Configuration)"
+    ]
+  },
+  {
+    "guide_id": "COMP-002",
+    "title": "API Works for Some Requests but Fails for Others",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Some API requests to the same endpoint succeed while others fail",
+    "problem": "A customer's integration sees some API requests succeed while functionally similar requests to the same endpoint fail.",
+    "visual": [
+      "Some API requests to the same endpoint succeed while others fail",
+      "Two API logs side-by-side: identical endpoint, different payloads, different results",
+      "Response comparison showing success (200) vs. failure (4xx/5xx) for similar calls",
+      "Highlighted diff between a working and failing request payload"
+    ],
+    "symptoms": [
+      "Some requests to an endpoint succeed while others of the same type fail.",
+      "The failure isn't tied to a full outage, since most requests work.",
+      "Failing requests may share a specific characteristic (payload size, field value, timing)."
+    ],
+    "causes": [
+      "A specific field value or payload structure in the failing requests triggers an edge case.",
+      "Rate limiting is affecting only requests that exceed a threshold.",
+      "The failing requests target a specific resource with a data-level issue.",
+      "Timing-related race conditions affect only certain request sequences."
+    ],
+    "steps": [
+      "Collect several examples of both successful and failing requests.",
+      "Diff the payloads to identify what's different about the failing ones.",
+      "Check whether failing requests are hitting a specific resource ID or rate limit.",
+      "Check timing/sequence: are failing requests submitted in rapid succession?",
+      "Test the exact failing payload in isolation to confirm it reproduces the failure."
+    ],
+    "decision": "Once a specific differentiating factor is identified (a field value, a resource, a rate threshold), the fix is targeted; if no pattern emerges, escalate for deeper log analysis.",
+    "solution": "Fix the edge case in the differentiating factor (e.g., handle the specific field value correctly, adjust rate limit awareness), then confirm all request variants succeed.",
+    "escalation": "Escalate if no consistent pattern can be identified between successful and failing requests after payload comparison.",
+    "team": "API & Integration Team",
+    "related": [
+      "API-001 (API 401 Unauthorized)",
+      "API-003 (API 500 Internal Server Error)"
+    ]
+  },
+  {
+    "guide_id": "COMP-003",
+    "title": "Integration Stops After Credential Rotation",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Integration fails immediately after an API credential was rotated",
+    "problem": "A customer's integration was working normally but stopped functioning immediately after they rotated (regenerated) their API credentials.",
+    "visual": [
+      "Integration fails immediately after an API credential was rotated",
+      "Old vs. new API key/token screenshot from the customer's integration settings",
+      "Error log showing authentication failures starting exactly at the rotation timestamp",
+      "Integration status showing \"Disconnected\" right after the customer's credential update"
+    ],
+    "symptoms": [
+      "Integration failure begins at the exact time credentials were rotated.",
+      "The customer confirms they updated the credential recently.",
+      "The integration was functioning normally immediately before the rotation."
+    ],
+    "causes": [
+      "The new credential was not fully propagated to all parts of the customer's integration.",
+      "The new credential has different scopes/permissions than the old one.",
+      "The customer updated the credential in one place but missed a secondary configuration.",
+      "A caching layer is still using the old, now-invalid credential."
+    ],
+    "steps": [
+      "Confirm the exact timestamp of the credential rotation versus when failures began.",
+      "Check whether the new credential has the same scopes as the old one.",
+      "Ask the customer to confirm the new credential was updated in all relevant places.",
+      "Check for any caching layer that might still hold the old credential.",
+      "Test the new credential directly to confirm it is valid and correctly scoped."
+    ],
+    "decision": "If the new credential is valid and correctly scoped but the integration still fails, look for a caching or propagation delay rather than a customer configuration mistake.",
+    "solution": "Update the credential everywhere it's referenced, clear any stale cache, and confirm the integration resumes normal operation.",
+    "escalation": "Escalate if the new credential is confirmed valid and fully propagated but the integration still fails.",
+    "team": "API & Integration Team",
+    "related": [
+      "API-005 (Third-Party Integration Failure)",
+      "API-001 (API 401 Unauthorized)"
+    ]
+  },
+  {
+    "guide_id": "COMP-004",
+    "title": "Data Synchronization Partially Fails",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Sync job reports \"completed\" but record counts don't match between systems",
+    "problem": "A sync process between two systems completes, but only part of the expected data is transferred, with some records silently missing.",
+    "visual": [
+      "Sync job reports \"completed\" but record counts don't match between systems",
+      "Sync summary showing 'X of Y records synced' with a gap",
+      "Side-by-side record count comparison between source and destination systems",
+      "Sync log showing specific failed record entries rather than a total failure"
+    ],
+    "symptoms": [
+      "The sync job reports as 'completed' but record counts don't match between systems.",
+      "Some records transfer correctly while others are silently skipped.",
+      "No obvious error is shown since the job technically 'succeeded'."
+    ],
+    "causes": [
+      "Specific records fail validation and are silently skipped rather than erroring out.",
+      "A pagination or batching bug causes some pages of records to be missed.",
+      "Certain records contain data that doesn't map cleanly between the two systems' schemas.",
+      "A rate limit is causing some records to be dropped mid-sync without retry."
+    ],
+    "steps": [
+      "Compare total record counts between source and destination systems.",
+      "Check the sync log specifically for skipped or silently failed record entries.",
+      "Identify what's different about the missing records versus the successfully synced ones.",
+      "Check for pagination/batching logic that could be dropping certain pages.",
+      "Manually re-sync just the missing records as a targeted test."
+    ],
+    "decision": "A 'completed' status with a count mismatch is a bigger red flag than an outright failure — it means the sync process needs stronger validation and error reporting, not just a retry.",
+    "solution": "Fix the specific mapping, batching, or validation issue causing records to be silently dropped, then confirm a full sync produces matching record counts.",
+    "escalation": "Escalate whenever a sync reports success but record counts don't match, since this indicates a silent data-integrity risk.",
+    "team": "Application Support Team",
+    "related": [
+      "DATA-001 (Data Synchronization Failure)",
+      "DATA-005 (Missing Records)"
+    ]
+  },
+  {
+    "guide_id": "COMP-005",
+    "title": "Dashboard Fails for Multiple Users",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Multiple unrelated customers report dashboard failures at the same time",
+    "problem": "Multiple customers, not just one, report their dashboards failing to load or displaying errors around the same time.",
+    "visual": [
+      "Multiple unrelated customers report dashboard failures at the same time",
+      "Multiple customers' screenshots showing the same or similar dashboard error",
+      "Service health monitoring dashboard showing degraded status for a dashboard-related service",
+      "Support queue showing a cluster of similar tickets arriving in a short window"
+    ],
+    "symptoms": [
+      "Several unrelated customers report the same dashboard issue in a short time window.",
+      "The issue is not isolated to one account's data or configuration.",
+      "May correlate with a recent deployment or infrastructure event."
+    ],
+    "causes": [
+      "A backend service that powers dashboards for all customers is degraded.",
+      "A recent deployment introduced a regression affecting a shared component.",
+      "A shared dependency (database, cache layer) is experiencing issues.",
+      "Increased load is causing dashboard queries to time out broadly."
+    ],
+    "steps": [
+      "Confirm whether this is affecting multiple customers simultaneously (check support queue volume).",
+      "Check the health/status of shared backend services powering dashboards.",
+      "Check whether a deployment occurred shortly before reports began.",
+      "Check infrastructure metrics (load, database performance) for signs of strain.",
+      "Communicate a known-issue status internally so other tickets can reference it."
+    ],
+    "decision": "Multiple simultaneous reports of the same symptom is itself the signal to treat this as an incident, not a series of individual tickets — escalate immediately rather than troubleshooting each ticket independently.",
+    "solution": "Resolve the underlying shared service, deployment regression, or infrastructure strain, then confirm dashboards recover for all affected customers.",
+    "escalation": "Escalate immediately as a potential incident whenever multiple customers report the same dashboard symptom in a short window.",
+    "team": "Infrastructure / Engineering Team",
+    "related": [
+      "APP-001 (Dashboard Error)",
+      "COMP-006 (Application Becomes Slow for Multiple Users)"
+    ]
+  },
+  {
+    "guide_id": "COMP-006",
+    "title": "Application Becomes Slow for Multiple Users",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Multiple unrelated customers report general application slowness at the same time",
+    "problem": "Multiple customers report the application becoming noticeably slower than usual across various features, not tied to a single page or action.",
+    "visual": [
+      "Multiple unrelated customers report general application slowness at the same time",
+      "Multiple customers' screen recordings showing long load times across different pages",
+      "Infrastructure monitoring graph showing elevated response times or resource usage",
+      "Support queue showing a spike in 'slow' complaints across accounts"
+    ],
+    "symptoms": [
+      "Several customers report general slowness rather than one specific error.",
+      "Slowness may affect multiple unrelated features simultaneously.",
+      "Often correlates with a specific time window or usage spike."
+    ],
+    "causes": [
+      "Increased overall traffic/load is straining shared infrastructure.",
+      "A specific slow database query is affecting shared resources for all customers.",
+      "A recent deployment introduced a performance regression.",
+      "A shared dependency (cache, queue, third-party service) is degraded, causing cascading slowness."
+    ],
+    "steps": [
+      "Confirm whether slowness is broad (multiple features/customers) or narrow (one feature/customer).",
+      "Check infrastructure metrics for elevated load, CPU, or database response time.",
+      "Check whether a deployment occurred around when slowness began.",
+      "Identify any specific slow database query or shared dependency causing strain.",
+      "Communicate a known-issue status internally while root cause is investigated."
+    ],
+    "decision": "Broad, multi-customer slowness is an infrastructure/performance incident, not something resolvable through individual account troubleshooting — treat as an incident immediately.",
+    "solution": "Resolve the underlying infrastructure strain, slow query, or deployment regression, then confirm response times return to normal for affected customers.",
+    "escalation": "Escalate immediately as a potential incident whenever slowness is reported by multiple unrelated customers.",
+    "team": "Infrastructure / Engineering Team",
+    "related": [
+      "API-004 (API Timeout)",
+      "COMP-005 (Dashboard Fails for Multiple Users)"
+    ]
+  },
+  {
+    "guide_id": "COMP-007",
+    "title": "SSO Works for Some Users but Not Others",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "SSO login succeeds for some users in an org but fails for others",
+    "problem": "Within a single organization using Single Sign-On, some users can authenticate successfully while others cannot, despite using the same SSO configuration.",
+    "visual": [
+      "SSO login succeeds for some users in an org but fails for others",
+      "Two users' SSO login attempts side-by-side: one succeeding, one failing",
+      "Identity provider user-provisioning screen showing a difference between the two users",
+      "SSO error code specific to the failing user only"
+    ],
+    "symptoms": [
+      "Some users in the organization log in via SSO successfully.",
+      "Other users in the same organization fail to authenticate via the same SSO setup.",
+      "The SSO configuration itself is confirmed active and working for at least some users."
+    ],
+    "causes": [
+      "The failing users are not correctly provisioned in the identity provider.",
+      "The failing users' email addresses don't match between the IdP and the platform.",
+      "A group/role assignment in the IdP excludes the failing users from SSO access.",
+      "The failing users have a stale or conflicting local account preventing SSO linkage."
+    ],
+    "steps": [
+      "Confirm which specific users are failing versus succeeding.",
+      "Check the failing users' provisioning status and group assignment in the IdP.",
+      "Compare the failing users' email address in the IdP against their platform account.",
+      "Check for a pre-existing local account that might conflict with SSO linkage for the failing users.",
+      "Correct provisioning/email mismatch and retest login for the failing users."
+    ],
+    "decision": "Since the SSO configuration itself clearly works (other users succeed), focus entirely on the failing users' individual provisioning rather than the SSO setup.",
+    "solution": "Correct the failing users' provisioning, group assignment, or email mismatch in the IdP, then confirm they can log in successfully.",
+    "escalation": "Escalate if provisioning and email matching are confirmed correct for the failing users but SSO login still fails.",
+    "team": "Identity & Access Team",
+    "related": [
+      "AUTH-005 (SSO Authentication Failure)",
+      "COMP-001 (Feature Works for One User but Not Another)"
+    ]
+  },
+  {
+    "guide_id": "COMP-008",
+    "title": "Webhook Received but Business Action Does Not Occur",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Webhook delivery log shows \"200 OK\" received but no resulting action occurred",
+    "problem": "A webhook event is confirmed to have been received by the platform, but the expected downstream action (e.g., updating a record, sending a notification) never happens.",
+    "visual": [
+      "Webhook delivery log shows \"200 OK\" received but no resulting action occurred",
+      "Webhook delivery log showing 'Received: 200 OK' but no corresponding action in the activity log",
+      "Timeline comparison: webhook timestamp vs. missing action timestamp",
+      "Processing queue screenshot showing the webhook event stuck or dropped"
+    ],
+    "symptoms": [
+      "The webhook delivery log confirms the event was received successfully.",
+      "The expected downstream business action (update, notification, record change) never occurs.",
+      "No error is shown since the webhook receipt itself succeeded."
+    ],
+    "causes": [
+      "The webhook payload is received but fails silently during internal processing.",
+      "A specific field in the payload doesn't match what the processing logic expects.",
+      "The event is queued for processing but the processing worker is stuck or backlogged.",
+      "A duplicate-event guard is incorrectly treating this as an already-processed event."
+    ],
+    "steps": [
+      "Confirm the webhook was received successfully (200 response) in the delivery log.",
+      "Check the internal processing queue/log for what happened to the event after receipt.",
+      "Compare the received payload structure against what the processing logic expects.",
+      "Check for a duplicate-event guard that might be incorrectly suppressing this event.",
+      "Manually reprocess the specific webhook event as a test."
+    ],
+    "decision": "A successfully received but silently unprocessed webhook is a processing-logic gap, not a delivery problem — do not focus troubleshooting on the webhook connection itself.",
+    "solution": "Fix the payload-matching or duplicate-detection logic causing the silent failure, then confirm the business action completes for a fresh test event.",
+    "escalation": "Escalate whenever a webhook is confirmed received but consistently produces no downstream action, since this requires an engineering-level processing fix.",
+    "team": "API & Integration Team",
+    "related": [
+      "BILL-002 (Payment Successful but Access Not Updated)",
+      "WORK-001 (Workflow or Automation Not Triggering)"
+    ]
+  },
+  {
+    "guide_id": "COMP-009",
+    "title": "Integration Works in Test but Fails in Production",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Integration succeeds in sandbox/test but fails when pointed at production",
+    "problem": "A customer's integration functions correctly in a test/sandbox environment but fails when pointed at the production environment.",
+    "visual": [
+      "Integration succeeds in sandbox/test but fails when pointed at production",
+      "Side-by-side configuration comparison: test environment vs. production environment settings",
+      "Environment-specific error only appearing in the production request log",
+      "URL/endpoint screenshot showing which environment is being targeted"
+    ],
+    "symptoms": [
+      "The exact same integration logic succeeds in test/sandbox mode.",
+      "The same logic fails when switched to point at production.",
+      "The customer confirms no code changes were made between environments, only the target."
+    ],
+    "causes": [
+      "Production credentials differ from test credentials and were not updated correctly.",
+      "Production has stricter rate limits or validation rules than the test environment.",
+      "A production-only feature flag or permission is not enabled for the customer's account.",
+      "The production endpoint URL differs from the test URL and wasn't updated."
+    ],
+    "steps": [
+      "Confirm the customer updated all environment-specific values (URL, credentials, IDs) for production.",
+      "Compare rate limits and validation rules between test and production for this account.",
+      "Check whether the required feature/permission is enabled on the production account.",
+      "Test the exact same payload manually against the production endpoint to isolate the failure.",
+      "Review production-specific logs for the exact error at the time of the customer's attempt."
+    ],
+    "decision": "Since test succeeds, the integration logic itself is sound — focus exclusively on what differs between the two environments rather than the customer's code.",
+    "solution": "Correct the environment-specific configuration difference (credentials, URL, feature flag, rate limit) and confirm production now behaves like test.",
+    "escalation": "Escalate if all environment-specific configuration is confirmed matching and production still fails while test succeeds.",
+    "team": "API & Integration Team",
+    "related": [
+      "API-001 (API 401 Unauthorized)",
+      "COMP-002 (API Works for Some Requests but Fails for Others)"
+    ]
+  },
+  {
+    "guide_id": "COMP-010",
+    "title": "Same Problem Returns After Resolution",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "A previously closed/resolved ticket's exact symptom has reoccurred",
+    "problem": "An issue that was previously resolved and confirmed fixed for a customer has reoccurred, either immediately or after some time has passed.",
+    "visual": [
+      "A previously closed/resolved ticket's exact symptom has reoccurred",
+      "Ticket history screenshot showing a previous resolved ticket for the identical symptom",
+      "Timeline showing the gap between resolution and recurrence",
+      "Comparison of the customer's current state versus what was configured at time of original fix"
+    ],
+    "symptoms": [
+      "The customer reports the exact same symptom as a previously closed ticket.",
+      "The original fix was confirmed working at the time it was closed.",
+      "Recurrence may be immediate or may happen after a delay."
+    ],
+    "causes": [
+      "The original fix addressed the symptom but not the true root cause.",
+      "A subsequent change (deployment, configuration edit) undid the original fix.",
+      "The underlying condition that caused the issue was temporary and has now recurred.",
+      "A different, similar-looking issue is being mistaken for the same root cause."
+    ],
+    "steps": [
+      "Pull the original ticket and confirm exactly what fix was applied previously.",
+      "Check whether anything has changed on the account or platform since the original fix.",
+      "Confirm whether the current symptom is truly identical or only superficially similar.",
+      "Determine whether the original fix treated a symptom rather than the root cause.",
+      "If the root cause was never fixed, treat this ticket as an opportunity to fix it properly."
+    ],
+    "decision": "A recurrence is a strong signal that the original resolution was a workaround rather than a true fix — treat this as a priority for root-cause escalation rather than repeating the same workaround.",
+    "solution": "Apply a root-cause fix this time rather than repeating the previous workaround, and confirm the issue does not recur after a reasonable monitoring period.",
+    "escalation": "Escalate any recurring issue directly to engineering with the full history of the original ticket and fix attached.",
+    "team": "Engineering / Backend Team",
+    "related": [
+      "COMP-001 (Feature Works for One User but Not Another)",
+      "COMP-015 (No Known Solution in Knowledge Base)"
+    ]
+  },
+  {
+    "guide_id": "COMP-011",
+    "title": "Payment Successful but Subscription Webhook Fails",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Payment succeeded but the subscription-status webhook never updated the account",
+    "problem": "A customer's payment is processed successfully by the payment provider, but the webhook that should notify the platform of this success fails to update the subscription status.",
+    "visual": [
+      "Payment succeeded but the subscription-status webhook never updated the account",
+      "Payment provider dashboard showing 'Succeeded' status for the charge",
+      "Webhook delivery log showing a failed or missing delivery attempt for this event",
+      "Account subscription status still showing 'Inactive' or 'Past Due' despite successful payment"
+    ],
+    "symptoms": [
+      "Payment is confirmed successful directly in the payment provider's dashboard.",
+      "The platform's subscription status does not reflect the successful payment.",
+      "No webhook delivery is recorded for this payment event, or it shows as failed."
+    ],
+    "causes": [
+      "The webhook endpoint was temporarily unreachable when the event was sent.",
+      "The webhook payload signature validation failed, causing it to be rejected.",
+      "The webhook was delivered but processing failed silently on receipt.",
+      "The payment event and the customer's account were not correctly linked."
+    ],
+    "steps": [
+      "Confirm the payment status directly in the payment provider's dashboard.",
+      "Check the webhook delivery log for this specific event's delivery attempt and result.",
+      "If delivery failed, check whether the endpoint was reachable at that time.",
+      "If delivered but not processed, check internal processing logs for a silent failure.",
+      "Manually update the subscription status to unblock the customer, then fix the webhook issue."
+    ],
+    "decision": "Always unblock the customer's access manually first once payment is verified, then investigate the webhook failure separately — don't make the customer wait on the root-cause investigation.",
+    "solution": "Manually apply the correct subscription status immediately, then fix the underlying webhook delivery or signature validation issue to prevent recurrence.",
+    "escalation": "Escalate to engineering if webhook delivery failures for payment events are recurring rather than a single incident.",
+    "team": "Billing Team",
+    "related": [
+      "BILL-002 (Payment Successful but Access Not Updated)",
+      "COMP-008 (Webhook Received but Business Action Does Not Occur)"
+    ]
+  },
+  {
+    "guide_id": "COMP-012",
+    "title": "Report Data Differs From Source System",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Platform report figures differ from the customer's own source-of-truth system",
+    "problem": "A report generated by the platform shows different figures than the customer's own source-of-truth system for the same underlying data.",
+    "visual": [
+      "Platform report figures differ from the customer's own source-of-truth system",
+      "Side-by-side numbers: platform report total vs. source system total",
+      "Highlighted specific rows/records that differ between the two systems",
+      "Timestamp comparison showing when each system's data was last updated"
+    ],
+    "symptoms": [
+      "The customer has an independent source system they trust as ground truth.",
+      "The platform's report shows a different total or set of records than that source.",
+      "The discrepancy may be small (rounding/timing) or large (missing data)."
+    ],
+    "causes": [
+      "A sync delay means the platform's data is not yet current with the source system.",
+      "The two systems calculate the same metric using different logic or filters.",
+      "A timezone or date-boundary difference causes records to be grouped differently.",
+      "Some records failed to sync from the source system and are simply missing."
+    ],
+    "steps": [
+      "Confirm exactly which figures differ and by how much.",
+      "Check the last sync timestamp between the platform and the source system.",
+      "Compare the calculation logic/filters used by each system for this metric.",
+      "Check for a timezone or date-boundary difference affecting grouping.",
+      "Identify whether specific records are entirely missing versus just calculated differently."
+    ],
+    "decision": "A small, consistent discrepancy usually points to timezone or calculation logic differences; a large or growing gap points to a sync failure with missing records.",
+    "solution": "Correct the sync delay, align calculation logic between systems, or fix the timezone handling, then confirm the platform's report matches the source system.",
+    "escalation": "Escalate if the discrepancy is confirmed to stem from missing synced records or a calculation-logic bug rather than expected timing differences.",
+    "team": "Application Support Team",
+    "related": [
+      "REP-004 (Incorrect Report Data)",
+      "DATA-001 (Data Synchronization Failure)"
+    ]
+  },
+  {
+    "guide_id": "COMP-013",
+    "title": "Notifications Work for Some Users but Not Others",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Some users on an account receive a notification type while others do not",
+    "problem": "Within the same account, some users receive a specific notification type reliably while other users on the same account do not.",
+    "visual": [
+      "Some users on an account receive a notification type while others do not",
+      "Two users' notification preference screens side-by-side showing a difference",
+      "Notification delivery log showing success for one user, failure/skip for another",
+      "Email address or device-token comparison between the two users"
+    ],
+    "symptoms": [
+      "Some users on the account receive the notification consistently.",
+      "Other users on the same account, for the same event type, do not.",
+      "The account-level notification configuration is confirmed enabled."
+    ],
+    "causes": [
+      "The affected users have the specific notification type disabled individually.",
+      "The affected users' contact info (email/device token) is outdated or invalid.",
+      "A per-user permission or subscription setting excludes them from this notification.",
+      "The affected users' notification delivery is being blocked by their own email/device settings."
+    ],
+    "steps": [
+      "Confirm the account-level notification setting is enabled (ruling out a account-wide config issue).",
+      "Compare the affected users' individual notification preferences against working users.",
+      "Confirm the affected users' email address or device token is current and valid.",
+      "Check for a per-user permission or subscription flag that could exclude them.",
+      "Send a manual test notification directly to an affected user to confirm delivery."
+    ],
+    "decision": "Since other users receive it fine, the account-level configuration is not the problem — investigate only the affected users' individual settings and contact info.",
+    "solution": "Correct the affected users' individual notification preference or contact info, then confirm they receive a test notification successfully.",
+    "escalation": "Escalate if affected users' individual settings and contact info are all confirmed correct but they still don't receive notifications.",
+    "team": "Application Support Team",
+    "related": [
+      "NOTIF-001 (Email Notification Not Received)",
+      "COMP-001 (Feature Works for One User but Not Another)"
+    ]
+  },
+  {
+    "guide_id": "COMP-014",
+    "title": "Feature Stops Working After Product Update",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "A feature stopped working immediately after a platform update/release",
+    "problem": "A feature that was working normally stops functioning correctly immediately following a platform update or new release.",
+    "visual": [
+      "A feature stopped working immediately after a platform update/release",
+      "Release notes screenshot for the update that coincides with the failure",
+      "Before/after screenshot comparing the feature's behavior pre- and post-update",
+      "Error appearing only in versions/builds after the update"
+    ],
+    "symptoms": [
+      "The feature worked correctly before a specific update and fails immediately after.",
+      "The timing of the failure closely matches a known release or deployment.",
+      "Other unrelated features may be unaffected, isolating the issue to this update."
+    ],
+    "causes": [
+      "The update introduced a regression affecting this specific feature.",
+      "The update changed a dependency or API contract that this feature relies on.",
+      "A configuration migration during the update did not complete correctly for this account.",
+      "The update requires a new setting or permission that wasn't automatically applied."
+    ],
+    "steps": [
+      "Confirm the exact timing of the failure against the release/deployment timeline.",
+      "Review the release notes for changes that could plausibly affect this feature.",
+      "Check whether a configuration migration ran successfully for the affected account.",
+      "Test the feature on an account that was not affected, if possible, to confirm the pattern.",
+      "Check whether a new setting or permission introduced by the update needs to be enabled."
+    ],
+    "decision": "Precise timing correlation with a release is strong evidence of a regression — prioritize checking the release notes and rollback options before deep individual debugging.",
+    "solution": "Apply a hotfix for the regression, complete the missed configuration migration, or enable the newly required setting, then confirm the feature works again.",
+    "escalation": "Escalate immediately to engineering when a feature failure's timing closely matches a recent release, since a regression fix is likely required.",
+    "team": "Engineering / Backend Team",
+    "related": [
+      "APP-003 (Feature Not Working)",
+      "COMP-010 (Same Problem Returns After Resolution)"
+    ]
+  },
+  {
+    "guide_id": "COMP-015",
+    "title": "No Known Solution in Knowledge Base",
+    "collection": "complex",
+    "category": "Complex Troubleshooting",
+    "identifier": "Reported symptoms do not match any existing knowledge base guide",
+    "problem": "A customer's issue does not match any existing troubleshooting guide, and no documented cause or fix currently exists for it.",
+    "visual": [
+      "Reported symptoms do not match any existing knowledge base guide",
+      "Junior developer's search results showing no matching guide found",
+      "Screenshot of the unique/unfamiliar symptom the customer is describing",
+      "Ticket marked as 'Unclassified' or 'New Issue Type'"
+    ],
+    "symptoms": [
+      "The issue's symptoms do not clearly match any existing guide's problem statement.",
+      "Standard troubleshooting steps for similar-sounding issues do not resolve it.",
+      "This may be a genuinely new issue type not yet seen before."
+    ],
+    "causes": [
+      "This is a newly emerging issue not yet documented in the knowledge base.",
+      "The issue is a rare edge case that hasn't been formally investigated.",
+      "The issue may be a variation of a known problem with an unusual trigger.",
+      "Insufficient information has been gathered yet to properly classify the issue."
+    ],
+    "steps": [
+      "Gather the fullest possible detail: exact steps to reproduce, environment, timing, error text, and screenshots.",
+      "Search the knowledge base using different keyword combinations before concluding no match exists.",
+      "Check with a senior developer or team lead whether this issue has been seen informally before.",
+      "Document the issue thoroughly even if unresolved, to seed a future knowledge base entry.",
+      "Do not guess at a fix — clearly flag this as an unclassified issue when escalating."
+    ],
+    "decision": "Never attempt to force-fit an unfamiliar issue into an existing guide's steps — misapplied troubleshooting can mask the real problem and waste the customer's time.",
+    "solution": "There is no documented solution yet. The immediate goal is thorough documentation and escalation, not resolution at the junior developer level.",
+    "escalation": "Escalate immediately with full documentation whenever no existing guide matches the reported symptoms.",
+    "team": "Senior Engineering / Escalation Team",
+    "related": [
+      "COMP-010 (Same Problem Returns After Resolution)",
+      "COMP-014 (Feature Stops Working After Product Update)"
+    ]
+  }
+]
