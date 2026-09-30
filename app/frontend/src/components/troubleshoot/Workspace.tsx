@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Sparkles, Bookmark, X, FileWarning } from "lucide-react";
 import { ErrorInput } from "./ErrorInput";
 import { ImageUploader } from "./ImageUploader";
@@ -28,6 +28,7 @@ const PROCESSING_MESSAGES = [
 
 export function Workspace({ initialTab = "text", initialSessionId }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const [tab, setTab] = useState<InputTab>(initialTab);
 
   const [problem, setProblem] = useState("");
@@ -93,7 +94,7 @@ export function Workspace({ initialTab = "text", initialSessionId }: Props) {
         result = await api.analyzeText(combined, context);
       }
       setAnalysis(result);
-      router.replace(`/troubleshoot?session=${result.session_id}`, { scroll: false });
+      router.replace(`${pathname}?session=${result.session_id}`, { scroll: false });
       refreshTimeline(result.session_id);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not reach the DevAssist AI backend.");
