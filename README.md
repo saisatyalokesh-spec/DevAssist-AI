@@ -12,6 +12,13 @@ This README follows the same structure as the app itself: **Project Overview** f
 
 ---
 
+## 🚀 Live application
+
+Try the app here: [DevAssist_AI](https://devassist-ai-1-ual5.onrender.com/)
+
+---
+
+
 ## 1. 📋 Project Overview
 
 *A RAG-based technical support platform — combining OCR screenshot reading, TF-IDF knowledge
